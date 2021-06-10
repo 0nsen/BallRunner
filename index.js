@@ -1,7 +1,10 @@
 // variables
 
+var animationRequestID;
 var gameWidth = 1200;
 var gameHeight = 675;
+
+var controls;
 
 var scene;
 var camera;
@@ -13,7 +16,7 @@ var ballColor = "#F5CB5C";
 var ballRadius = 5;
 var ballDetail = 1;
 var ballSpeed = 0;
-var ballAcceleration = 0.1;
+var ballAcceleration = 0.15;
 var ball;
 
 var sunLight;
@@ -27,8 +30,8 @@ var hemisphereLightColorTop = "#B23A48";
 var cylinderColor = "#003844";
 var cylinderRadius = 200;
 var cylinderHeight = 300;
-var cylinderRadialSegments = 50;
-var cylinderSpeed = 0.01;
+var cylinderRadialSegments = 70;
+var cylinderSpeed = 0.015;
 var cylinder;
 
 var columnColor = "#307351";
@@ -37,55 +40,61 @@ var columnHeight = 20;
 var columnRadialSegments = 50;
 
 var columnArray;
-var columnAmount;
-var obstacleArray;
+var columnAmount = 20;
+
+var obstaclesInSight;
+
+var scoreNumber = 0;
+var score = "";
 
 function obstacleBehavior() {
     var obstaclePosition = new THREE.Vector3();
 
-    if (obstacleArray.length > 0) {
-        obstacleArray.forEach(obstacle => {
-            obstaclePosition.setFromMatrixPosition(obstacle.matrixWorld);
-    
-            if (obstaclePosition.z > 20) {  // Out of camera vision
-                obstacleArray.splice(obstacleArray.indexOf(obstacle), 1);
-                columnArray.push(obstacle);
+    obstaclesInSight.forEach(obstacle => {
+        obstaclePosition.setFromMatrixPosition(obstacle.matrixWorld);
+
+        if (obstaclePosition.z > 20 && obstaclePosition.y < 200) {  // Out of camera vision
+            var temp = obstaclesInSight.splice(obstaclesInSight.indexOf(obstacle), 1);  // Remove the obstacle
+
+            columnArray.push(temp[0]); // Recycle the obstacle
+            temp.visible = false;
+        }
+        else {
+            if (obstaclePosition.distanceTo(ball.position) < 10) {  // Obstacle touches the ball
+                window.cancelAnimationFrame(animationRequestID);    // Stop game
+                document.querySelector(".restart").style.visibility = 'visible';    // Show restart button
             }
-        });
-    }
+        }
+    });
+
 }
 
 function addObstacleRow() {
-    var newObstacle;
-    
+    var lanes = [-55, -45, -35, -25, -15, -5, 5, 15, 25, 35, 45, 55];
+    var laneIndex = Math.floor(Math.random() * (lanes.length - 1));
+
     if (columnArray.length <= 0) return;
 
-    newObstacle = columnArray.pop();
-    obstacleArray.push(newObstacle);
+    var newObstacle = columnArray.pop();
+    newObstacle.visible = true;
+    obstaclesInSight.push(newObstacle);
 
-    var spherical = new THREE.Spherical(cylinderRadius + (columnHeight/2) - 0.3, 90 * Math.PI/180, 180 * Math.PI/180);
+    // Place obstacle along the cylinder
+    var spherical = new THREE.Spherical(cylinderRadius + (columnHeight/2) - 0.3, 90 * Math.PI/180, cylinder.rotation.x - 3);
     newObstacle.position.setFromSpherical(spherical);
 
-    newObstacle.position.y = randomize(70, -70, 15);  // Random number between -70 and 70 with a step of 15
+    // Rotate obstacle to stand upright against the cylinder
+    var ballVector = ball.position.clone().normalize();
+    var obstacleVector = newObstacle.position.clone().normalize();
+    newObstacle.quaternion.setFromUnitVectors(obstacleVector, ballVector);
+
+    // Randomize obstacle horizontal placement
+    newObstacle.position.y = lanes[laneIndex];
     
     cylinder.add(newObstacle);
 }
 
-function randomize(max, min, step) {
-    var delta, range, rand;
-
-    delta = max - min;
-    range = delta / step;
-    rand = Math.random();
-    rand *= range;
-    rand = Math.floor(rand);
-    rand *= step;
-    rand += min;
-
-    return rand;
-}
-
-function createColumn() {
+function createColumn() {   // Create obstacle column
     var columnGeometry = new THREE.CylinderGeometry(columnRadius, columnRadius, columnHeight, columnRadialSegments);
     var columnMaterial = new THREE.MeshStandardMaterial({color: columnColor});
 
@@ -93,8 +102,6 @@ function createColumn() {
 
     column.castShadow = true;
     column.receiveShadow = true;
-
-    column.rotation.x = 90 * Math.PI/180;
 
     return column;
 }
@@ -133,7 +140,7 @@ function addBall() {
     ball.castShadow = true;
     ball.receiveShadow = true;
 
-    ball.position.y = cylinderRadius + ballRadius - 0.7;
+    ball.position.y = cylinderRadius + ballRadius - 0.7;    // Position ball on the platform
 
     scene.add(ball);
 }
@@ -153,31 +160,29 @@ function userInput(keyEvent) {
     }
 }
 
-function createScene() {
+function createScene(isRestart) {
     scene = new THREE.Scene();
 
     camera = new THREE.PerspectiveCamera(75, gameWidth/gameHeight, 0.1, 1000 );
     camera.rotation.x = -45 * Math.PI/180;
     camera.position.y = 250;
     camera.position.z = 20;
-
-    // camera.rotation.y = 90 * Math.PI/180;
-    // camera.position.y = 150;
-    // camera.position.x = 300;
-    // camera.position.z = 250;
-
-    // camera.rotation.x = -30 * Math.PI/180;
-    // camera.rotation.y = -50 * Math.PI/180;
-    // camera.position.y = 200;
-    // camera.position.z = 200;
-    // camera.position.x = -200;
     
     renderer = new THREE.WebGLRenderer({alpha: true});  // Render with transparent background
     renderer.setSize(gameWidth, gameHeight);
-    document.querySelector("#game").appendChild(renderer.domElement);
+
+    var gameScreen = document.querySelector(".game");
+    if (isRestart == 'restart') {
+        gameScreen.removeChild(gameScreen.childNodes[0]);
+        document.querySelector(".restart").style.visibility = 'hidden';
+    }
+    gameScreen.appendChild(renderer.domElement);
+
     renderer.shadowMap.enabled = true;  // Enable shadow map
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+    //controls = new THREE.OrbitControls(camera, renderer.domElement);
+    
     clock = new THREE.Clock();
     clock.start();
 
@@ -185,9 +190,7 @@ function createScene() {
     addBall();
 
     columnArray = [];
-    obstacleArray = [];
-    columnAmount = randomize(10, 3, 1);
-    
+    obstaclesInSight = [];
     for (var i = 0; i < columnAmount; i++) {
         columnArray.push(createColumn());
     }
@@ -195,12 +198,14 @@ function createScene() {
     addLight();
 
     document.addEventListener("keydown", userInput);
+    score = document.querySelector(".score-number");
+    scoreNumber = 0;
 }
 
 function animate() {
     renderer.render(scene,camera);  // Draw scene
-    window.requestAnimationFrame(animate);  // Loop animate()
-
+    animationRequestID = window.requestAnimationFrame(animate);  // Loop animate()
+    
     // Ball and cylinder movement
     
     ball.rotation.x -= cylinderSpeed;   // Ball rotates backwards at the same speed as cylinder rotates forwards
@@ -214,14 +219,20 @@ function animate() {
 
     // Creating obstacles
 
-    if (clock.getElapsedTime() > 1) {
+    if (clock.getElapsedTime() > 0.5) { // Spawn obstacles in intervals
         clock.start();
         addObstacleRow();
     }
+
+    scoreNumber += 1;
+    score.innerHTML = scoreNumber;
+
     obstacleBehavior();
+
+    //controls.update();  // OrbitControls
 }
 
-function setup() {
-    createScene();
+function setup(isRestart) {
+    createScene(isRestart);
     animate();
 }
