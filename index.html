@@ -9,6 +9,7 @@
         body {
             position: relative;
             font-size: 16px;
+            font-family: Roboto, sans-serif;
         }
 
         .game {
@@ -18,45 +19,85 @@
             margin: auto;
         }
 
+        button {
+            cursor: pointer;
+            outline: none;
+            background-color: transparent;
+            border-radius: 5px;
+            font-size: 1rem;
+            border: #F5CB5C solid 2px;
+        }
+
+        button:hover {
+            background-color: #F5CB5C;
+            transition: ease 0.1s;
+            
+        }
+
+        header {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .play {
+            width: 50%;
+            height: 3rem;
+            
+        }
+
         .sidebar {
             position: absolute;
-            top: 0;
-            left: 0;
-            font-family: Roboto, sans-serif;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             font-size: 1rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            width: 10%;
         }
 
         .score-board {
             text-align: center;
+            visibility: hidden;
         }
 
         .restart {
             visibility: hidden;
             height: 2em;
-            outline: none;
-            border: #F5CB5C solid 2px;
-            cursor: pointer;
-            background-color: white;
             font-size: 1rem;
-        }
-
-        .restart:focus, .restart:hover {
-            background-color: #F5CB5C;
+            width: 50%;
+            margin: 0 auto;
         }
     </style>
+    <script>
+        function handleClick() {
+            document.querySelector("header").style.visibility = "hidden";
+            document.querySelector(".score-board").style.visibility = "visible";
+            setup();
+        }
+    </script>
 </head>
-<body onload="setup()">
+<body>
     <div class="game"></div>
+
+    <header>
+        <h1>Ball Runner</h1>
+        <button class="play" onclick="handleClick()">PLAY</button>
+    </header>    
 
     <div class="sidebar">
         <div class="score-board">
             <h3>Score</h3>
             <p class="score-number">0</p>
         </div>
-        <button class="restart" onclick="setup('restart')">RESTART</button>
+        <button class="restart" onclick="setup('restart')">RETRY</button>
     </div>
     
     <script src="three.js"></script>
