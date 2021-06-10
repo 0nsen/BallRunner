@@ -19,6 +19,8 @@ var ballSpeed = 0;
 var ballAcceleration = 0.15;
 var ball;
 
+var friction = 0.01;
+
 var sunLight;
 var sunLightColor = "#FC6471";
 
@@ -31,7 +33,7 @@ var cylinderColor = "#003844";
 var cylinderRadius = 200;
 var cylinderHeight = 300;
 var cylinderRadialSegments = 70;
-var cylinderSpeed = 0.015;
+var cylinderSpeed;
 var cylinder;
 
 var columnColor = "#307351";
@@ -53,7 +55,7 @@ function obstacleBehavior() {
     obstaclesInSight.forEach(obstacle => {
         obstaclePosition.setFromMatrixPosition(obstacle.matrixWorld);
 
-        if (obstaclePosition.z > 20 && obstaclePosition.y < 200) {  // Out of camera vision
+        if (obstaclePosition.z > 20 && obstaclePosition.y < 190) {  // Out of camera vision
             var temp = obstaclesInSight.splice(obstaclesInSight.indexOf(obstacle), 1);  // Remove the obstacle
 
             columnArray.push(temp[0]); // Recycle the obstacle
@@ -148,12 +150,14 @@ function addBall() {
 function userInput(keyEvent) {
     if (keyEvent.keyCode == 37) {   // Left
         if (ball.position.x >= -55 && ballSpeed > -2) {
+            if (ballSpeed > 0) ballSpeed = -ballSpeed;
             ballSpeed -= ballAcceleration; 
         }
         else ballSpeed = ballSpeed; // Limit max speed
     }
     else if (keyEvent.keyCode == 39) {  // Right
         if (ball.position.x <= 55 && ballSpeed < 2) {
+            if (ballSpeed < 0) ballSpeed = -ballSpeed;
             ballSpeed += ballAcceleration; 
         }
         else ballSpeed = ballSpeed; // Limit max speed
@@ -186,7 +190,10 @@ function createScene(isRestart) {
     clock = new THREE.Clock();
     clock.start();
 
+    cylinderSpeed = 0.015;
     addPlatform();
+
+    ballSpeed = 0;
     addBall();
 
     columnArray = [];
@@ -205,13 +212,20 @@ function createScene(isRestart) {
 function animate() {
     renderer.render(scene,camera);  // Draw scene
     animationRequestID = window.requestAnimationFrame(animate);  // Loop animate()
-    
+
+    if (scoreNumber > 500) cylinderSpeed = 0.03;
+    else if (scoreNumber > 1000) cylinderSpeed = 0.06;
+    else if (scoreNumber > 1500) cylinderSpeed = 0.09;
+    else if (scoreNumber > 2000) cylinderSpeed = 0.12;
+
     // Ball and cylinder movement
     
     ball.rotation.x -= cylinderSpeed;   // Ball rotates backwards at the same speed as cylinder rotates forwards
     cylinder.rotation.x += cylinderSpeed;
 
     ball.position.x += ballSpeed;
+    if (ballSpeed > 0) ballSpeed -= friction;
+    else ballSpeed += friction;
 
     if (ball.position.x > 55 || ball.position.x < -55) {
        ballSpeed = -ballSpeed; // Bounce the ball back once it hits the edge
@@ -219,7 +233,7 @@ function animate() {
 
     // Creating obstacles
 
-    if (clock.getElapsedTime() > 0.5) { // Spawn obstacles in intervals
+    if (clock.getElapsedTime() > 0.4) { // Spawn obstacles in intervals
         clock.start();
         addObstacleRow();
     }
